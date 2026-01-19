@@ -20,6 +20,20 @@ export default defineConfig({
     include: ['@canvasjs/react-charts', '@canvasjs/charts', 'framer-motion']
   },
   build: {
+    // warn when chunks exceed 500kb (adjust as needed)
+    chunkSizeWarningLimit: 500,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            if (id.includes('@canvasjs') || id.includes('canvasjs')) return 'charts';
+            if (id.includes('framer-motion')) return 'motion';
+            if (id.includes('react') || id.includes('react-dom')) return 'react-vendor';
+            return 'vendor';
+          }
+        }
+      }
+    },
     commonjsOptions: {
       include: [/node_modules/],
       transformMixedEsModules: true
