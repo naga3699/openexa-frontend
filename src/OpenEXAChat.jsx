@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { Loader2, Send, Plus, Trash2, PencilLine, Settings, Check, X, Sparkles, Wifi, History, Save, RefreshCcw } from "lucide-react";
 
 import CandlestickChart from "./CandlestickChart";

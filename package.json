@@ -12,10 +12,11 @@
   "dependencies": {
     "@canvasjs/react-charts": "^1.0.2",
     "express": "^5.1.0",
-    "framer-motion": "^12.23.24",
+    "framer-motion": "^12.27.0",
     "lucide-react": "^0.545.0",
     "react": "^19.1.1",
-    "react-dom": "^19.1.1"
+    "react-dom": "^19.1.1",
+    "yarn": "^1.22.22"
   },
   "devDependencies": {
     "@eslint/js": "^9.36.0",
