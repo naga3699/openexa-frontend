@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import React, { useEffect, useRef, useState } from "react";
+import { AnimatePresence } from "framer-motion";
 import { Loader2, Send, Plus, Trash2, PencilLine, Settings, Check, X, Sparkles, Wifi, History, Save, RefreshCcw } from "lucide-react";
 
 import CandlestickChart from "./CandlestickChart";
@@ -120,7 +120,7 @@ export default function OpenEXAChat() {
     if (!sessions.activeId) {
       const id = uid();
       const first = { id, name: "Session 1", chatId: id, messages: [], created: Date.now() };
-      setSessions(s => ({ order: [id], byId: { [id]: first }, activeId: id }));
+      setSessions(() => ({ order: [id], byId: { [id]: first }, activeId: id }));
     }
   }, []); // eslint-disable-line
 
