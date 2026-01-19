@@ -1,0 +1,102 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches: [ main ]
+    paths-ignore:
+      - '**.md'
+      - '.gitignore'
+  workflow_dispatch:  # Allow manual trigger
+
+jobs:
+  deploy:
+    name: Deploy Application
+    runs-on: ubuntu-latest
+    environment: production
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Run linting
+        run: npm run lint
+      
+      - name: Build application
+        run: npm run build
+      
+      - name: Build server
+        run: |
+          if [ -f "server/package.json" ]; then
+            cd server
+            npm ci
+            echo "✅ Server dependencies installed"
+            cd ..
+          fi
+      
+      - name: Verify build artifacts
+        run: |
+          if [ -d "dist" ] && [ "$(ls -A dist)" ]; then
+            echo "✅ Frontend build successful"
+            echo "📦 Files in dist/:"
+            ls -lah dist/ | head -20
+          else
+            echo "❌ Frontend build failed"
+            exit 1
+          fi
+      
+      - name: Create deployment package
+        run: |
+          mkdir -p deploy-package
+          cp -r dist deploy-package/
+          cp -r server deploy-package/ || true
+          cp package.json deploy-package/
+          cp package-lock.json deploy-package/ || true
+          echo "✅ Deployment package created"
+      
+      - name: Upload deployment artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-build
+          path: deploy-package/
+          retention-days: 30
+      
+      - name: Create GitHub Release
+        uses: actions/create-release@v1
+        if: success()
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v${{ github.run_number }}
+          release_name: Release ${{ github.run_number }}
+          body: |
+            Production deployment for commit ${{ github.sha }}
+            
+            **Build Information:**
+            - Build Number: ${{ github.run_number }}
+            - Commit: ${{ github.sha }}
+            - Author: ${{ github.actor }}
+            
+            **Artifacts:**
+            - Frontend distribution build
+            - Server files
+            - Dependencies manifests
+          draft: false
+          prerelease: false
+      
+      - name: Deployment Success Notification
+        run: |
+          echo "🚀 Deployment Successful!"
+          echo "=========================="
+          echo "Build Number: ${{ github.run_number }}"
+          echo "Commit: ${{ github.sha }}"
+          echo "Branch: ${{ github.ref }}"
+          echo ""
+          echo "Artifacts are ready for deployment."

@@ -1,0 +1,140 @@
+name: Pull Request Checks
+
+on:
+  pull_request:
+    branches: [ main, develop ]
+    types: [opened, synchronize, reopened]
+
+jobs:
+  pr-validation:
+    name: Validate Pull Request
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Validate PR title
+        run: |
+          PR_TITLE="${{ github.event.pull_request.title }}"
+          if [[ ! "$PR_TITLE" =~ ^(feat|fix|docs|style|refactor|perf|test|chore)(\(.+\))?!?:\ .{10,} ]]; then
+            echo "❌ PR title does not follow conventional commits format"
+            echo "Expected format: feat|fix|docs|style|refactor|perf|test|chore(scope): description"
+            exit 1
+          fi
+          echo "✅ PR title follows conventional commits"
+      
+      - name: Check PR description
+        run: |
+          DESC_LENGTH=$(echo "${{ github.event.pull_request.body }}" | wc -c)
+          if [ $DESC_LENGTH -lt 20 ]; then
+            echo "⚠️  Warning: PR description is very short. Please add more details."
+          else
+            echo "✅ PR description is present"
+          fi
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Run linting
+        run: npm run lint
+      
+      - name: Build check
+        run: npm run build
+      
+      - name: Report PR status
+        if: success()
+        run: |
+          echo "✅ All PR checks passed"
+          echo "---"
+          echo "The PR is ready for review."
+
+  changed-files:
+    name: Check Changed Files
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Get changed files
+        id: changed-files
+        run: |
+          CHANGED=$(git diff --name-only origin/main...HEAD)
+          echo "Changed files:"
+          echo "$CHANGED"
+          
+          # Check for dangerous patterns
+          if echo "$CHANGED" | grep -q "package.json"; then
+            echo "⚠️  package.json was modified"
+          fi
+          
+          if echo "$CHANGED" | grep -q "package-lock.json\|package-lock.json"; then
+            echo "ℹ️  Dependencies were updated"
+          fi
+
+  size-check:
+    name: Bundle Size Check
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Build
+        run: npm run build
+      
+      - name: Check bundle size
+        run: |
+          if [ -d "dist" ]; then
+            TOTAL_SIZE=$(du -sh dist/ | awk '{print $1}')
+            echo "📦 Total bundle size: $TOTAL_SIZE"
+            
+            # Check individual files
+            echo ""
+            echo "Top 10 largest files:"
+            find dist -type f -exec du -h {} + | sort -rh | head -10
+            
+            # Warning if too large
+            SIZE_BYTES=$(du -sb dist/ | awk '{print $1}')
+            MAX_SIZE=$((5 * 1024 * 1024))  # 5MB limit
+            
+            if [ $SIZE_BYTES -gt $MAX_SIZE ]; then
+              echo "⚠️  Warning: Bundle size exceeds 5MB"
+              echo "Consider optimizing images and dependencies"
+            else
+              echo "✅ Bundle size is acceptable"
+            fi
+          fi
+      
+      - name: Add size comment to PR
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const exec = require('child_process').execSync;
+            const size = exec('du -sh dist/ 2>/dev/null || echo "N/A"').toString().trim();
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `📦 **Bundle Size**: ${size}`
+            });
