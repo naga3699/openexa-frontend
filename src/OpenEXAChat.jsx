@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+/* eslint-disable-next-line no-unused-vars */
 import { motion, AnimatePresence } from "framer-motion";
 import { Loader2, Send, Plus, Trash2, PencilLine, Settings, Check, X, Sparkles, Wifi, History, Save, RefreshCcw } from "lucide-react";
 
