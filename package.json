@@ -11,6 +11,8 @@
   },
   "dependencies": {
     "@canvasjs/react-charts": "^1.0.2",
+    "@tailwindcss/vite": "^4.1.18",
+    "@vitejs/plugin-react-swc": "^4.2.2",
     "express": "^5.1.0",
     "framer-motion": "^12.27.0",
     "lucide-react": "^0.545.0",

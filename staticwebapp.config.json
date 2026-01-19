@@ -2,5 +2,15 @@
   "mimeTypes": {
     ".js": "text/javascript",
     ".jsx": "text/javascript"
+  },
+  "navigationFallback": {
+    "rewrite": "/index.html",
+    "exclude": [
+      "/assets/*",
+      "/vite.svg",
+      "/*.css",
+      "/*.js",
+      "/favicon.ico"
+    ]
   }
 }
