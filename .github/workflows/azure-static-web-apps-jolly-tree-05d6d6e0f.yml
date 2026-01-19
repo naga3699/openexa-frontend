@@ -38,7 +38,6 @@ jobs:
           action: upload
 
           # ✅ CRITICAL SETTINGS
-          app_location: "/"          # repo root
-          api_location: ""           # no Azure Functions
-          output_location: "dist"    # Vite build output
-          skip_app_build: true       # We build earlier in the workflow (use Node 20.19.0)
+          app_location: "/" # App source code path
+          api_location: "" # Api source code path - optional
+          output_location: "dist" # Built app content directory - optional
