@@ -3,6 +3,8 @@ import react from "@vitejs/plugin-react-swc"
 import { defineConfig } from "vite"
 import { resolve } from 'path'
 
+/* eslint-env node */
+/* global process */
 const projectRoot = process.env.PROJECT_ROOT || import.meta.dirname
 
 // https://vite.dev/config/
