@@ -1,40 +1,6 @@
 {
-  "routes": [
-    {
-      "route": "/*",
-      "serve": "/index.html",
-      "statusCode": 200
-    },
-    {
-      "route": "/assets/*",
-      "serve": "/assets/*"
-    }
-  ],
   "mimeTypes": {
     ".js": "text/javascript",
-    ".jsx": "text/javascript",
-    ".mjs": "text/javascript",
-    ".json": "application/json",
-    ".css": "text/css",
-    ".html": "text/html",
-    ".svg": "image/svg+xml",
-    ".png": "image/png",
-    ".jpg": "image/jpeg",
-    ".jpeg": "image/jpeg",
-    ".gif": "image/gif",
-    ".webp": "image/webp",
-    ".woff": "font/woff",
-    ".woff2": "font/woff2",
-    ".eot": "application/vnd.ms-fontobject",
-    ".ttf": "font/ttf",
-    ".otf": "font/otf"
-  },
-  "navigationFallback": {
-    "rewrite": "/index.html",
-    "exclude": ["/images/*", "/css/*", "/js/*", "/assets/*"]
-  },
-  "trailingSlash": "auto",
-  "globalHeaders": {
-    "cache-control": "public, max-age=3600"
+    ".jsx": "text/javascript"
   }
 }
