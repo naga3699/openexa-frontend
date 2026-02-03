@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Loader2, Send, Plus, Trash2, PencilLine, Settings, Check, X, Sparkles, Wifi, History, Save, RefreshCcw } from "lucide-react";
 
 import CandlestickChart from "./CandlestickChart";
+import StockShower from "./components/StockShower";
 
 // UTIL
 const LS_KEY = "openexa-chat-sessions-v2";
@@ -154,8 +155,8 @@ export default function OpenEXAChat() {
   const [status, setStatus] = useState("");
   const [progress, setProgress] = useState([]); // array of strings
   const [chartOptions, setChartOptions] = useState(null);
-  const [rightMenuOpen, setRightMenuOpen] = useState(false);
   const [candlestickText, setCandlestickText] = useState(""); // Store candlestick data text
+  const [stocksOpen, setStocksOpen] = useState(false);
   const listRef = useRef(null);
 
   useEffect(() => {
@@ -177,7 +178,7 @@ export default function OpenEXAChat() {
       
       const attemptFetch = async () => {
         try {
-          const respo = await fetch("http://localhost:4000/data", { cache: "no-store" });
+          const respo = await fetch("https://n8n-358659050159.us-west1.run.app", { cache: "no-store" });
           const data = await respo.json();
           
           // Update status with the new data
@@ -507,13 +508,12 @@ export default function OpenEXAChat() {
             <div className="text-sm font-medium">{active?.name || "Session"}</div>
             <div className="flex items-center gap-2">
               <GhostButton onClick={createSession}><Plus size={18}/></GhostButton>
-              <GhostButton onClick={() => setRightMenuOpen(!rightMenuOpen)}><Settings size={18}/></GhostButton>
               <SettingsButton settings={settings} setSettings={setSettings}/>
             </div>
           </div>
 
-          {/* Status chips */}
-          <div className="flex items-center gap-2 px-4 py-2 border-b border-white/10 bg-white/5">
+          {/* Status chips and StockShower */}
+          <div className="flex items-center gap-2 px-4 py-2 border-b border-white/10 bg-white/5 overflow-x-auto">
             <Chip><Sparkles size={14} className="mr-1"/> OpenEXA</Chip>
             {status && <Chip>{status}</Chip>}
             <AnimatePresence>
@@ -530,8 +530,10 @@ export default function OpenEXAChat() {
             {progress.map((p, i) => (
               <Chip key={i}>{p}</Chip>
             ))}
-            <div className="ml-auto">
-              <GhostButton onClick={() => setRightMenuOpen(!rightMenuOpen)}><Settings size={18}/></GhostButton>
+            <div className="ml-auto flex-shrink-0">
+              <GhostButton onClick={() => setStocksOpen(true)}>
+                <History size={18}/> Stocks
+              </GhostButton>
             </div>
           </div>
 
@@ -584,48 +586,43 @@ export default function OpenEXAChat() {
             </div>
           </div>
         </main>
-
-        {/* Right Sidebar */}
-        <AnimatePresence>
-          {rightMenuOpen && (
-            <motion.aside
-              initial={{ x: 300, opacity: 0 }}
-              animate={{ x: 0, opacity: 1 }}
-              exit={{ x: 300, opacity: 0 }}
-              transition={{ duration: 0.3 }}
-              className="w-80 border-l border-white/10 bg-slate-900/50 backdrop-blur-md p-4 gap-3 flex flex-col"
-            >
-              <div className="flex items-center justify-between">
-                <h2 className="text-sm font-semibold tracking-wide uppercase text-white/80">Panel</h2>
-                <GhostButton onClick={() => setRightMenuOpen(false)}><X size={18}/></GhostButton>
-              </div>
-
-              {/* Chart Section */}
-              {chartOptions && (
-                <div className="border-b border-white/10 pb-4">
-                  <CandlestickChart
-                    options={chartOptions}
-                    width={settings?.chartWidth || 320}
-                    height={settings?.chartHeight || 240}
-                    candleWidth={settings?.candleWidth}
-                  />
-                </div>
-              )}
-
-              {/* Candlestick Data Text */}
-              <div className="flex-1 overflow-auto text-white/60 text-sm">
-                {candlestickText ? (
-                  <pre className="whitespace-pre-wrap font-mono text-xs leading-relaxed">
-                    {candlestickText}
-                  </pre>
-                ) : (
-                  <p>No candlestick data available yet.</p>
-                )}
-              </div>
-            </motion.aside>
-          )}
-        </AnimatePresence>
       </div>
+
+      {/* StockShower Popup */}
+      <AnimatePresence>
+        {stocksOpen && (
+          <motion.div
+            className="fixed inset-0 z-50 grid place-items-center bg-black/60 p-4"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setStocksOpen(false)}
+          >
+            <motion.div
+              initial={{ y: 20, opacity: 0, scale: 0.95 }}
+              animate={{ y: 0, opacity: 1, scale: 1 }}
+              exit={{ y: 10, opacity: 0, scale: 0.95 }}
+              className="w-[95vw] max-w-6xl max-h-[90vh] overflow-auto rounded-2xl border border-white/10 bg-slate-900/95 backdrop-blur-md p-6"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="stocks-title"
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h3 id="stocks-title" className="text-lg font-semibold">Stock Data</h3>
+                <button
+                  onClick={() => setStocksOpen(false)}
+                  className="p-2 rounded-xl hover:bg-white/10"
+                  aria-label="Close stocks"
+                >
+                  <X size={20}/>
+                </button>
+              </div>
+              <StockShower />
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
