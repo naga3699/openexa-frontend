@@ -165,7 +165,7 @@ export default function OpenEXAChat() {
 
     const fetchData = async () => {
       try {
-        const res = await fetch("https://n8n-358659050159.us-west1.run.app/webhook/7ccacb21-182a-44fe-b4bf-29738ebbb5c1/chat", { cache: "no-store" });
+        const res = await fetch("http://localhost:5678/webhook/7ccacb21-182a-44fe-b4bf-29738ebbb5c1/chat", { cache: "no-store" });
         const data = await res.json();
         console.log("Polling data received:", data);
       } catch (error) {
