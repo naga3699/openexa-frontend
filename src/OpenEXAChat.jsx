@@ -3,7 +3,6 @@ import React, { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Loader2, Send, Plus, Trash2, PencilLine, Settings, Check, X, Sparkles, Wifi, History, Save, RefreshCcw } from "lucide-react";
 
-import CandlestickChart from "./CandlestickChart";
 import StockShower from "./components/StockShower";
 
 // UTIL
@@ -112,9 +111,7 @@ export default function OpenEXAChat() {
   const [settings, setSettings] = useLocalStorage(LS_SETTINGS, {
     webhookUrl: "",
     pollInterval: 5000,
-    chartWidth: 900,
-    chartHeight: 320,   
-    candleWidth: 10
+    pollUrl: "http://localhost:4000/data"
   });
 
   // Ensure at least one session exists
@@ -152,10 +149,7 @@ export default function OpenEXAChat() {
   // Chat state
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
-  const [status, setStatus] = useState("");
   const [progress, setProgress] = useState([]); // array of strings
-  const [chartOptions, setChartOptions] = useState(null);
-  const [candlestickText, setCandlestickText] = useState(""); // Store candlestick data text
   const [stocksOpen, setStocksOpen] = useState(false);
   const listRef = useRef(null);
 
@@ -165,157 +159,24 @@ export default function OpenEXAChat() {
     }
   }, [active?.messages?.length, busy]);
 
-  // Clear chart when session changes
+  // Polling endpoint for real-time updates
   useEffect(() => {
-    setChartOptions(null);
-  }, [active?.id]);
+    if (!settings.pollUrl) return;
 
-  //stuff arnav added
-  useEffect(() => {
     const fetchData = async () => {
-      let retries = 0;
-      const maxRetries = 3;
-      
-      const attemptFetch = async () => {
-        try {
-          const respo = await fetch("https://n8n-358659050159.us-west1.run.app", { cache: "no-store" });
-          const data = await respo.json();
-          
-          // Update status with the new data
-          if (data.Body) {
-            setStatus(data.Body);
-          }
-          
-          // Safe data access with validation
-          if (!data?.Candlestick) return;
-          
-          const allCandles = data.Candlestick?.allCandles?.[0];
-          if (!allCandles || typeof allCandles !== "object") return;
-          
-          const candles = allCandles.candles || allCandles;
-          if (!candles || typeof candles !== "object") return;
-          
-          const meta = (allCandles.candles && allCandles.candles["Meta Data"]) || allCandles["Meta Data"] || allCandles.meta || data.Candlestick?.meta || {};
-          const symbol = meta["2. Symbol"] || data.Candlestick?.symbol || null;
-          
-          const timeSeries = candles["Time Series (15min)"] || candles["timeSeries"] || candles["Time Series"] || candles;
-          
-          // Validate timeSeries is an object with entries
-          if (!timeSeries || typeof timeSeries !== "object") return;
-          const timeSeriesEntries = Object.entries(timeSeries);
-          if (timeSeriesEntries.length === 0) return;
-          
-          let text = "";
-          let count = 0;
-          for (const [timestamp, candle] of timeSeriesEntries) {
-            if (count >= 30) break; // Truncate at 30 entries
-            if (!candle || typeof candle !== "object") continue;
-            
-            try {
-              const open = parseFloat(candle["1. open"]) || NaN;
-              const high = parseFloat(candle["2. high"]) || NaN;
-              const low = parseFloat(candle["3. low"]) || NaN;
-              const close = parseFloat(candle["4. close"]) || NaN;
-              const volume = parseInt(candle["5. volume"], 10) || 0;
-              text += `Timestamp: ${timestamp}, Open: ${open}, High: ${high}, Low: ${low}, Close: ${close}, Volume: ${volume}\n`;
-              count++;
-            } catch (e) {
-              console.warn("Error parsing candle data:", e);
-              continue;
-            }
-          }
-
-          // Store the text for the right panel
-          setCandlestickText(text);
-
-          const dataPoints = timeSeriesEntries
-            .map(([timestamp, candle]) => {
-              try {
-                if (!candle || typeof candle !== "object") return null;
-                const d = new Date(timestamp);
-                // if timestamp isn't parseable, skip
-                if (isNaN(d.getTime())) return null;
-                
-                const open = parseFloat(candle["1. open"]);
-                const high = parseFloat(candle["2. high"]);
-                const low = parseFloat(candle["3. low"]);
-                const close = parseFloat(candle["4. close"]);
-                
-                // Skip if any values are NaN
-                if (isNaN(open) || isNaN(high) || isNaN(low) || isNaN(close)) return null;
-                
-                return {
-                  x: d,
-                  y: [open, high, low, close]
-                };
-              } catch (e) {
-                console.warn("Error mapping candle point:", e);
-                return null;
-              }
-            })
-            .filter(Boolean);
-
-          dataPoints.sort((a, b) => a.x - b.x);
-
-          const upColor = "#16a34a"; // green for bullish
-          const downColor = "#ef4444"; // red for bearish
-
-          const dataPointsWithColor = dataPoints.map((dp) => {
-            // dp.y = [open, high, low, close]
-            const open = Number(dp.y?.[0]);
-            const close = Number(dp.y?.[3]);
-            const color =
-              !Number.isNaN(open) && !Number.isNaN(close) && close >= open
-                ? upColor
-                : downColor;
-            return { ...dp, color };
-          });
-
-          const options = {
-            theme: "dark2",
-            animationEnabled: true,
-            exportEnabled: true,
-            title: { text: symbol ? `${symbol} Candlesticks` : "Candlesticks" },
-            axisX: { valueFormatString: "MMM DD HH:mm" },
-            axisY: { prefix: "$" },
-            data: [
-              {
-                type: "candlestick",
-                name: "Price",
-                yValueFormatString: "$###0.00",
-                xValueFormatString: "MMM DD HH:mm",
-                risingColor: upColor, // series-level fallback
-                fallingColor: downColor, // series-level fallback
-                increasingColor: upColor,
-                decreasingColor: downColor,
-                upColor: upColor,
-                downColor: downColor,
-                dataPoints: dataPointsWithColor,
-              },
-            ],
-          };
-
-          // Update chart (will render via <CandlestickChart />)
-          setChartOptions(options);
-        } catch (error) {
-          if (retries < maxRetries) {
-            retries++;
-            console.warn(`Fetch error, retrying (${retries}/${maxRetries}):`, error.message);
-            return await attemptFetch();
-          } else {
-            console.error("Error fetching data after 3 retries:", error);
-            console.error("Error details:", error.message);
-            setStatus("Error fetching data");
-          }
-        }
-      };
-      
-      attemptFetch();
+      try {
+        const res = await fetch("https://n8n-358659050159.us-west1.run.app/webhook/7ccacb21-182a-44fe-b4bf-29738ebbb5c1/chat", { cache: "no-store" });
+        const data = await res.json();
+        console.log("Polling data received:", data);
+      } catch (error) {
+        console.error("Polling error:", error.message);
+      }
     };
-    
+
+    fetchData(); // Initial fetch
     const interval = setInterval(fetchData, settings.pollInterval || 5000);
     return () => clearInterval(interval);
-  }, [settings.pollInterval]);
+  }, [settings.pollInterval, settings.pollUrl, busy]);
   
   async function sendMessage() {
     const text = input.trim();
@@ -356,11 +217,11 @@ export default function OpenEXAChat() {
         body: JSON.stringify({ chatId: active.chatId, chatInput: text })
       });
       const data = await res.json();
+      
+      console.log("Webhook response received:", data);
 
       // chips in header
-      const statusText = data.status || "";
       const progressArr = Array.isArray(data.progress) ? data.progress : [];
-      setStatus(statusText);
       setProgress(progressArr);
 
       // prefer authoritative server history ONLY if non-empty and for the same session
@@ -515,7 +376,6 @@ export default function OpenEXAChat() {
           {/* Status chips and StockShower */}
           <div className="flex items-center gap-2 px-4 py-2 border-b border-white/10 bg-white/5 overflow-x-auto">
             <Chip><Sparkles size={14} className="mr-1"/> OpenEXA</Chip>
-            {status && <Chip>{status}</Chip>}
             <AnimatePresence>
               {busy && (
                 <motion.span
@@ -543,7 +403,7 @@ export default function OpenEXAChat() {
               <div className="h-full grid place-items-center text-center text-white/70">
                 <div>
                   <div className="text-2xl font-semibold mb-2">Welcome Back!</div>
-                  <p className="text-sm">Say <span className="font-semibold">hi</span> to begin. Choose Relval or Tickers.</p>
+                  <p className="text-sm">Choose a Ticker.</p>
                 </div>
               </div>
             )}
@@ -630,22 +490,13 @@ export default function OpenEXAChat() {
 function SettingsButton({ settings, setSettings }) {
   const [open, setOpen] = useState(false);
   const [url, setUrl] = useState(settings.webhookUrl || "");
-  const [chartWidth, setChartWidth] = useState(settings.chartWidth ?? 900);
-  const [chartHeight, setChartHeight] = useState(settings.chartHeight ?? 320);
-  const [candleWidth, setCandleWidth] = useState(settings.candleWidth ?? 10);
 
   useEffect(() => {
       setUrl(settings.webhookUrl || "");
-      setChartWidth(settings.chartWidth ?? 900);
-      setChartHeight(settings.chartHeight ?? 320);
-      setCandleWidth(settings.candleWidth ?? 10);
     }, [open, settings]); // refresh when opening
 
   function save() {
-    setSettings(s => ({ ...s, webhookUrl: url.trim(), 
-      chartWidth: Number(chartWidth) || 0,
-      chartHeight: Number(chartHeight) || 0,
-      candleWidth: Number(candleWidth) || 0 }));
+    setSettings(s => ({ ...s, webhookUrl: url.trim() }));
     setOpen(false);
   }
 
@@ -690,25 +541,27 @@ function SettingsButton({ settings, setSettings }) {
                 className="w-full rounded-xl bg-white/5 border border-white/10 px-3 py-2 outline-none focus:ring-2 focus:ring-violet-400/60"
               />
 
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="text-sm text-white/70">Chart width (px, 0 = full)</label>
-                  <input type="number" value={chartWidth} onChange={e => setChartWidth(e.target.value)} className="w-full rounded-xl bg-white/5 border border-white/10 px-3 py-2 outline-none focus:ring-2 focus:ring-violet-400/60" />
-                </div>
-                <div>
-                  <label className="text-sm text-white/70">Chart height (px)</label>
-                  <input type="number" value={chartHeight} onChange={e => setChartHeight(e.target.value)} className="w-full rounded-xl bg-white/5 border border-white/10 px-3 py-2 outline-none focus:ring-2 focus:ring-violet-400/60" />
-                </div>
-                <div>
-                  <label className="text-sm text-white/70">Poll interval (ms, min 1000)</label>
-                  <input type="number" value={settings.pollInterval ?? 5000} onChange={e => setSettings(s => ({ ...s, pollInterval: Math.max(1000, Number(e.target.value) || 5000) }))} className="w-full rounded-xl bg-white/5 border border-white/10 px-3 py-2 outline-none focus:ring-2 focus:ring-violet-400/60" />
-                  <p className="text-xs text-white/60 mt-1">Default: 5000ms. Lower = more frequent updates.</p>
-                </div>
-                <div>
-                  <label className="text-sm text-white/70">Candlestick width (px)</label>
-                  <input type="number" value={candleWidth} onChange={e => setCandleWidth(e.target.value)} className="w-full rounded-xl bg-white/5 border border-white/10 px-3 py-2 outline-none focus:ring-2 focus:ring-violet-400/60" />
-                  <p className="text-xs text-white/60 mt-1">Smaller values make candles thinner (try 4–12).</p>
-                </div>
+              <div>
+                <label className="text-sm text-white/70">Polling URL</label>
+                <input
+                  type="text"
+                  value={settings.pollUrl || ""}
+                  onChange={e => setSettings(s => ({ ...s, pollUrl: e.target.value }))}
+                  placeholder="http://localhost:4000/data"
+                  className="w-full rounded-xl bg-white/5 border border-white/10 px-3 py-2 outline-none focus:ring-2 focus:ring-violet-400/60"
+                />
+                <p className="text-xs text-white/60 mt-1">Endpoint for real-time progress updates.</p>
+              </div>
+
+              <div>
+                <label className="text-sm text-white/70">Poll interval (ms)</label>
+                <input
+                  type="number"
+                  value={settings.pollInterval ?? 5000}
+                  onChange={e => setSettings(s => ({ ...s, pollInterval: Math.max(1000, Number(e.target.value) || 5000) }))}
+                  className="w-full rounded-xl bg-white/5 border border-white/10 px-3 py-2 outline-none focus:ring-2 focus:ring-violet-400/60"
+                />
+                <p className="text-xs text-white/60 mt-1">How often to check for updates (min 1000ms).</p>
               </div>
 
               <div className="flex justify-end gap-2">
